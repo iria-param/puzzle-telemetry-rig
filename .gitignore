@@ -1,0 +1,19 @@
+# Collected visitor/session data and saved camera references are local-only.
+data/
+
+# Local diagnostics and temporary captures.
+dashboard.log
+test.jpg
+*.log
+
+# Python bytecode and virtual environments.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor and operating-system metadata.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

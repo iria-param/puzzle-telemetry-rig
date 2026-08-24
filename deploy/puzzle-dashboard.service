@@ -1,0 +1,16 @@
+[Unit]
+Description=Puzzle Telemetry Rig dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=raspberrypi
+WorkingDirectory=/home/raspberrypi/phase_1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 -u /home/raspberrypi/phase_1/src/tools/live_dashboard.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the T-puzzle completion check works</title>
+<style>
+  :root{
+    --tan:#d2a86e; --ink:#1f2937; --soft:#6b7280; --line:#e5e7eb; --bg:#f7f8fa; --card:#fff;
+    --ok:#2e8b57; --bad:#d64545; --blue:#5b8def; --amber:#e8923a; --green:#3a9d5d; --purple:#7c5cd6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:28px 20px 60px}
+  .wrap{max-width:1020px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:17px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .sub{color:var(--soft);font-size:13px;margin:0 0 22px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin-bottom:22px}
+  svg{max-width:100%;height:auto;display:block;margin:0 auto}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card h3{margin:0 0 8px;font-size:14.5px}
+  .card p{margin:0;font-size:13.5px;color:#374151}
+  code{background:#f1f2f4;border-radius:4px;padding:1px 5px;font-size:12.5px}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}
+  th{text-align:left;color:var(--soft);font-weight:600;padding:3px 8px 5px 0;border-bottom:1px solid var(--line)}
+  td{padding:4px 8px 4px 0;border-bottom:1px solid #f1f2f4}
+  .rule{background:#eef6f0;border:1px solid #cfe6d6;border-radius:10px;padding:12px 16px;
+        font-size:14.5px;text-align:center;margin-top:16px}
+  footer{color:var(--soft);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>How the T-puzzle completion check works</h1>
+<p class="sub">Classical computer vision — rules, not machine learning · runs on the live camera frame at every switch press (start check + stop checks) ·
+implemented in <code>src/vision/verify.py</code> · Param Foundation, AI &amp; Robotics Lab · 20 Aug 2026</p>
+
+<!-- ============ MAIN PIPELINE ============ -->
+<section>
+<h2>The same 4 steps, two different outcomes</h2>
+<svg viewBox="0 0 1000 560" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8a94a3"/>
+    </marker>
+  </defs>
+
+  <!-- column headers -->
+  <text x="87"  y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2937">1 · Camera photo</text>
+  <text x="290" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2937">2 · HSV colour mask</text>
+  <text x="493" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2937">3 · Connected components</text>
+  <text x="696" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2937">4 · Shape match + area</text>
+  <text x="899" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#1f2937">5 · Verdict</text>
+
+  <text x="87"  y="48" text-anchor="middle" font-size="11" fill="#6b7280">what the webcam sees</text>
+  <text x="290" y="48" text-anchor="middle" font-size="11" fill="#6b7280">keep only "tan" pixels</text>
+  <text x="493" y="48" text-anchor="middle" font-size="11" fill="#6b7280">group touching pixels into objects</text>
+  <text x="696" y="48" text-anchor="middle" font-size="11" fill="#6b7280">outline vs saved solved-T outline</text>
+  <text x="899" y="48" text-anchor="middle" font-size="11" fill="#6b7280">all checks must pass</text>
+
+  <!-- ================= ROW A : SOLVED ================= -->
+  <!-- A1 camera -->
+  <g transform="translate(12,64)">
+    <rect width="150" height="120" rx="8" fill="#efeae2" stroke="#d8d2c6"/>
+    <path d="M30 18 L120 18 L120 44 L90 44 L90 102 L60 102 L60 44 L30 44 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+    <circle cx="133" cy="105" r="7" fill="#c9c2b4"/> <!-- stray non-tan object (shadow/clip) -->
+  </g>
+  <!-- A2 mask -->
+  <g transform="translate(215,64)">
+    <rect width="150" height="120" rx="8" fill="#14181f"/>
+    <path d="M30 18 L120 18 L120 44 L90 44 L90 102 L60 102 L60 44 L30 44 Z" fill="#ffffff"/>
+    <text x="75" y="114" text-anchor="middle" font-size="10" fill="#8a94a3">grey clip ignored — wrong colour</text>
+  </g>
+  <!-- A3 components -->
+  <g transform="translate(418,64)">
+    <rect width="150" height="120" rx="8" fill="#14181f"/>
+    <path d="M30 18 L120 18 L120 44 L90 44 L90 102 L60 102 L60 44 L30 44 Z" fill="#5b8def"/>
+    <text x="75" y="114" text-anchor="middle" font-size="11" font-weight="700" fill="#9fc0ff">1 object ✓</text>
+  </g>
+  <!-- A4 match -->
+  <g transform="translate(621,64)">
+    <rect width="150" height="120" rx="8" fill="#ffffff" stroke="#e5e7eb"/>
+    <path d="M30 14 L120 14 L120 40 L90 40 L90 98 L60 98 L60 40 L30 40 Z"
+          fill="none" stroke="#8a94a3" stroke-width="2" stroke-dasharray="5 4"/>
+    <path d="M33 17 L123 17 L123 43 L93 43 L93 101 L63 101 L63 43 L33 43 Z"
+          fill="none" stroke="#2e8b57" stroke-width="2.5"/>
+    <text x="75" y="114" text-anchor="middle" font-size="10.5" fill="#2e8b57">score 0.03 (≈ same) · area 98%</text>
+  </g>
+  <!-- A5 verdict -->
+  <g transform="translate(824,64)">
+    <rect width="150" height="120" rx="8" fill="#eef6f0" stroke="#cfe6d6"/>
+    <circle cx="75" cy="50" r="26" fill="#2e8b57"/>
+    <path d="M62 50 L71 60 L89 40" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="75" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#2e8b57">COMPLETE</text>
+  </g>
+
+  <!-- row A arrows -->
+  <line x1="166" y1="124" x2="209" y2="124" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="369" y1="124" x2="412" y2="124" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="572" y1="124" x2="615" y2="124" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="775" y1="124" x2="818" y2="124" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ================= ROW B : NOT SOLVED ================= -->
+  <!-- B1 camera -->
+  <g transform="translate(12,224)">
+    <rect width="150" height="120" rx="8" fill="#efeae2" stroke="#d8d2c6"/>
+    <path d="M22 28 L58 20 L44 56 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+    <path d="M72 16 L116 26 L106 52 L76 46 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+    <path d="M24 72 L60 66 L54 102 L20 96 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+    <path d="M82 66 L122 72 L116 106 L86 100 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+  </g>
+  <!-- B2 mask -->
+  <g transform="translate(215,224)">
+    <rect width="150" height="120" rx="8" fill="#14181f"/>
+    <path d="M22 28 L58 20 L44 56 Z" fill="#fff"/>
+    <path d="M72 16 L116 26 L106 52 L76 46 Z" fill="#fff"/>
+    <path d="M24 72 L60 66 L54 102 L20 96 Z" fill="#fff"/>
+    <path d="M82 66 L122 72 L116 106 L86 100 Z" fill="#fff"/>
+  </g>
+  <!-- B3 components -->
+  <g transform="translate(418,224)">
+    <rect width="150" height="120" rx="8" fill="#14181f"/>
+    <path d="M22 28 L58 20 L44 56 Z" fill="#5b8def"/>
+    <path d="M72 16 L116 26 L106 52 L76 46 Z" fill="#e8923a"/>
+    <path d="M24 72 L60 66 L54 102 L20 96 Z" fill="#3a9d5d"/>
+    <path d="M82 66 L122 72 L116 106 L86 100 Z" fill="#d64545"/>
+    <text x="75" y="114" text-anchor="middle" font-size="11" font-weight="700" fill="#ffb3b3">4 objects ✗</text>
+  </g>
+  <!-- B4 match -->
+  <g transform="translate(621,224)">
+    <rect width="150" height="120" rx="8" fill="#ffffff" stroke="#e5e7eb"/>
+    <path d="M30 14 L120 14 L120 40 L90 40 L90 98 L60 98 L60 40 L30 40 Z"
+          fill="none" stroke="#8a94a3" stroke-width="2" stroke-dasharray="5 4"/>
+    <path d="M52 34 L118 49 L103 88 L58 79 Z" fill="none" stroke="#d64545" stroke-width="2.5"/>
+    <text x="75" y="114" text-anchor="middle" font-size="10.5" fill="#d64545">largest piece: score 0.85 · area 31%</text>
+  </g>
+  <!-- B5 verdict -->
+  <g transform="translate(824,224)">
+    <rect width="150" height="120" rx="8" fill="#fdf1f1" stroke="#f0d2d2"/>
+    <circle cx="75" cy="50" r="26" fill="#d64545"/>
+    <path d="M64 39 L86 61 M86 39 L64 61" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+    <text x="75" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#d64545">NOT COMPLETE</text>
+  </g>
+
+  <!-- row B arrows -->
+  <line x1="166" y1="284" x2="209" y2="284" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="369" y1="284" x2="412" y2="284" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="572" y1="284" x2="615" y2="284" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="775" y1="284" x2="818" y2="284" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <!-- ================= HALF-SOLVED MINI ROW ================= -->
+  <g transform="translate(12,384)">
+    <rect width="150" height="120" rx="8" fill="#efeae2" stroke="#d8d2c6"/>
+    <!-- T missing half the stem, plus the loose piece nearby -->
+    <path d="M30 18 L120 18 L120 44 L90 44 L90 72 L60 72 L60 44 L30 44 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+    <path d="M98 80 L128 84 L124 110 L96 106 Z" fill="#d2a86e" stroke="#b98e52" stroke-width="1.5"/>
+  </g>
+  <g transform="translate(418,384)">
+    <rect width="150" height="120" rx="8" fill="#14181f"/>
+    <path d="M30 18 L120 18 L120 44 L90 44 L90 72 L60 72 L60 44 L30 44 Z" fill="#5b8def"/>
+    <path d="M98 80 L128 84 L124 110 L96 106 Z" fill="#e8923a"/>
+    <text x="75" y="114" text-anchor="middle" font-size="11" font-weight="700" fill="#ffd9a8">2 objects ✗</text>
+  </g>
+  <g transform="translate(621,384)">
+    <rect width="150" height="120" rx="8" fill="#ffffff" stroke="#e5e7eb"/>
+    <path d="M30 14 L120 14 L120 40 L90 40 L90 98 L60 98 L60 40 L30 40 Z"
+          fill="none" stroke="#8a94a3" stroke-width="2" stroke-dasharray="5 4"/>
+    <path d="M33 17 L123 17 L123 43 L93 43 L93 71 L63 71 L63 43 L33 43 Z" fill="none" stroke="#b07617" stroke-width="2.5"/>
+    <text x="75" y="114" text-anchor="middle" font-size="10.5" fill="#b07617">score 0.32 · area 74% — both fail</text>
+  </g>
+  <g transform="translate(824,384)">
+    <rect width="150" height="120" rx="8" fill="#fdf1f1" stroke="#f0d2d2"/>
+    <circle cx="75" cy="50" r="26" fill="#d64545"/>
+    <path d="M64 39 L86 61 M86 39 L64 61" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+    <text x="75" y="102" text-anchor="middle" font-size="12" font-weight="700" fill="#d64545">NOT COMPLETE</text>
+  </g>
+  <line x1="166" y1="444" x2="412" y2="444" stroke="#8a94a3" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#a)"/>
+  <text x="289" y="436" text-anchor="middle" font-size="10.5" fill="#8a94a3">(mask step skipped in drawing — same idea)</text>
+  <line x1="572" y1="444" x2="615" y2="444" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+  <line x1="775" y1="444" x2="818" y2="444" stroke="#8a94a3" stroke-width="1.6" marker-end="url(#a)"/>
+
+  <text x="500" y="540" text-anchor="middle" font-size="12" fill="#6b7280">Colour only FINDS the cardboard (step 2). The COMPLETE/NOT decision comes from steps 3–4: one object, right outline, right size.</text>
+
+  <!-- case badges (drawn last = on top of panel corners) -->
+  <g font-size="11" font-weight="700">
+    <rect x="4" y="54" width="112" height="20" rx="10" fill="#2e8b57"/>
+    <text x="60" y="68" text-anchor="middle" fill="#fff">CASE A · solved</text>
+    <rect x="4" y="214" width="126" height="20" rx="10" fill="#d64545"/>
+    <text x="67" y="228" text-anchor="middle" fill="#fff">CASE B · scattered</text>
+    <rect x="4" y="374" width="176" height="20" rx="10" fill="#b07617"/>
+    <text x="92" y="388" text-anchor="middle" fill="#fff">CASE C · almost (1 piece off)</text>
+  </g>
+</svg>
+
+<div class="rule">
+  <b>Decision rule:</b>&nbsp; COMPLETE&nbsp; =&nbsp; exactly <b>1</b> tan object&nbsp; <b>AND</b>&nbsp; shape-match score ≤ <b>0.08</b>&nbsp; <b>AND</b>&nbsp; area between <b>82–118%</b> of the saved solved-T
+  <div style="font-size:12px;color:#6b7280;margin-top:4px">(these are the live values in <code>config.yaml → completion:</code> — calibrate against real labelled photos)</div>
+</div>
+</section>
+
+<!-- ============ STEP DETAIL CARDS ============ -->
+<section>
+<h2>Each step, one level deeper</h2>
+<div class="cards">
+
+  <div class="card">
+    <h3>2 · HSV colour mask — <code>cv2.inRange()</code></h3>
+    <p>The photo is converted from RGB to HSV, where colour (Hue) separates from brightness (Value) —
+    so shadows hurt much less. Every pixel inside the "tan" range turns white, everything else black.</p>
+    <svg viewBox="0 0 300 64" style="margin-top:10px">
+      <defs>
+        <linearGradient id="hue" x1="0" x2="1">
+          <stop offset="0%"  stop-color="#ff0000"/><stop offset="8%"  stop-color="#ff8000"/>
+          <stop offset="17%" stop-color="#ffff00"/><stop offset="33%" stop-color="#00ff00"/>
+          <stop offset="50%" stop-color="#00ffff"/><stop offset="66%" stop-color="#0000ff"/>
+          <stop offset="83%" stop-color="#ff00ff"/><stop offset="100%" stop-color="#ff0000"/>
+        </linearGradient>
+      </defs>
+      <rect x="10" y="14" width="280" height="16" rx="4" fill="url(#hue)"/>
+      <rect x="18" y="10" width="47" height="24" fill="none" stroke="#1f2937" stroke-width="2" rx="3"/>
+      <text x="43" y="52" text-anchor="middle" font-size="11" fill="#1f2937">tan ≈ H 5–35</text>
+      <text x="190" y="52" font-size="11" fill="#6b7280">+ S 45–255 · V 70–235 (OpenCV scale)</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <h3>3 · Connected components — <code>cv2.connectedComponents()</code></h3>
+    <p>White pixels that touch each other are grouped into one labelled object. This is the key insight:
+    a <b>solved</b> puzzle has all pieces touching → <b>one</b> object. Scattered or half-done → several objects.
+    Tiny specks below a minimum area (dust, glare) are thrown away first.</p>
+  </div>
+
+  <div class="card">
+    <h3>4a · Contour matching — <code>cv2.matchShapes()</code></h3>
+    <p>The outline (<code>cv2.findContours</code>) of the single object is compared with the outline of a
+    reference photo of the solved T, taken once during setup. The score uses Hu moments, which don't care
+    about position or rotation — a T anywhere on the board still matches. <b>0 = identical shape</b>; bigger = more different.</p>
+  </div>
+
+  <div class="card">
+    <h3>4b · Area-ratio check — <code>cv2.contourArea()</code></h3>
+    <p>Safety net for shape-match false positives: the object's pixel area must be roughly the reference T's
+    area (camera is fixed, so scale is constant). A single piece that happens to look T-ish still fails,
+    because it's far too small.</p>
+  </div>
+
+  <div class="card">
+    <h3>When it runs + why it's reliable here</h3>
+    <p>It runs on the <b>live camera frame at each switch press</b> — once to validate the start
+    (already solved? → press ignored) and at every stop attempt. Nothing is stored per session;
+    only the solved reference image + mask are kept on disk. Fixed top-down camera, fixed board,
+    known puzzle — the conditions where rule-based vision beats ML: no training data, every decision explainable
+    (within its thresholds — it matches the reference shape, it does not truly "recognise" a T).</p>
+  </div>
+
+  <div class="card">
+    <h3>Tuning knobs (already set in <code>config.yaml → completion:</code>)</h3>
+    <table>
+      <tr><th>Knob</th><th>Current value</th><th>Adjust when…</th></tr>
+      <tr><td>HSV tan range</td><td>H 5–35, S 45–255, V 70–235</td><td>mask misses pieces / grabs the board</td></tr>
+      <tr><td>Min blob size</td><td>2000 px</td><td>noise blobs appear / small pieces vanish</td></tr>
+      <tr><td>Mask clean-up kernel</td><td>5 px morphology</td><td>speckles or pinholes in the mask</td></tr>
+      <tr><td>Match threshold</td><td>score ≤ 0.08</td><td>false rejects / false accepts</td></tr>
+      <tr><td>Area band</td><td>82–118%</td><td>lighting changes apparent size</td></tr>
+    </table>
+  </div>
+
+</div>
+</section>
+
+<footer>Implements CLAUDE.md §8 verification plan (v1) · target file: <code>src/vision/verify.py</code> ·
+reference: <code>data/reference/t_puzzle_complete.jpg</code> (+ mask), captured once via the live dashboard · Param Foundation, AI &amp; Robotics Lab</footer>
+
+</div>
+</body>
+</html>

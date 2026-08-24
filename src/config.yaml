@@ -1,0 +1,60 @@
+# Puzzle Telemetry Rig — ALL tunables live here. Never hardcode these in code.
+# Pins are BCM GPIO numbers. Wiring source of truth: docs/wiring.md (rev 2, 20 Aug 2026)
+#
+# REV 2: two HC-SR04 sensors + limit switch replace the start/stop buttons.
+# Confirmed on the current bench wiring (20 Aug 2026).
+
+pins:
+  sensor1_trigger: 22    # physical pin 15
+  sensor1_echo: 17       # physical pin 11, via 1 kOhm + 2 kOhm divider
+  sensor2_trigger: 6     # physical pin 31
+  sensor2_echo: 27       # physical pin 13, via 1 kOhm + 2 kOhm divider
+  limit_switch: 26       # physical pin 37 to GND; verified open idle and press/release
+
+sensor_test:
+  sample_interval_s: 0.25  # gap between readings; sensors are polled sequentially
+  echo_timeout_s: 0.03     # HC-SR04 maximum valid echo pulse wait
+  max_distance_cm: 400     # HC-SR04 rated maximum distance
+  switch_bounce_s: 0.05    # debounce for the GPIO26 limit switch
+
+session:
+  approach_cm: 80        # person-near distance threshold
+  approach_hold_s: 1.0   # require sustained proximity before recording approach_ts
+  approach_reset_s: 10   # wait this long away from the table before recording a new approach
+  near_timeout_s: 60     # expire an unused approach after this long
+  result_hold_s: 20      # for the future e-paper display; the dashboard shows the result until the next press
+  safety_timeout_s: 300  # auto-end a session with no successful stop (5 min) -> saved as completed=abandoned
+
+features:
+  camera: false          # Milestone C — hand tracking
+
+camera:
+  index: 0               # Logitech Brio 100 = /dev/video0 (confirmed 17 Aug 2026)
+  width: 640
+  height: 480
+  fps: 5
+
+dashboard:
+  host: 127.0.0.1        # local-only by default; use an SSH tunnel from Windows
+  port: 8000
+  jpeg_quality: 80       # live stream only; frames are not saved
+
+completion:
+  reference_image: data/reference/t_puzzle_complete.jpg
+  reference_mask: data/reference/t_puzzle_complete_mask.png
+  hsv_lower: [5, 45, 70]       # tan cardboard; calibrate from real labelled checks if needed
+  hsv_upper: [35, 255, 235]
+  morphology_kernel: 5
+  min_component_pixels: 2000
+  max_shape_score: 0.08         # cv2.matchShapes score; lower is more T-like
+  min_area_ratio: 0.82          # current largest piece area / solved-T area
+  max_area_ratio: 1.18
+
+data:
+  dir: data              # relative to where main.py is run from (~/phase_1 on the Pi)
+  csv: sessions.csv
+  images_dir: images
+
+# Removed in rev 2 (kept for history): start_button: 5, stop_button: 6 — replaced
+# by limit_switch. main.py's session logic is being reworked to match the
+# confirmed sensor pins and the final limit-switch semantics.

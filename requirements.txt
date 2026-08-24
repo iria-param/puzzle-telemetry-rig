@@ -1,0 +1,8 @@
+# Python deps for the Pi venv (full one-time setup: CLAUDE.md §7).
+# gpiozero + lgpio come from apt (python3-gpiozero python3-lgpio), opencv from apt (python3-opencv).
+# The Waveshare e-paper driver installs from its repo: pip install ~/e-Paper/RaspberryPi_JetsonNano/python
+pyyaml
+pillow
+spidev
+# --- Milestone C (uncomment when camera work starts) ---
+# mediapipe
