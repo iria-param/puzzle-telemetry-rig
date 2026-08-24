@@ -110,6 +110,10 @@ ssh -N -L 8000:127.0.0.1:8000 raspberrypi@puzzle-rig-pi
 
 Open <http://127.0.0.1:8000/> after the tunnel connects.
 
+### Automatic Windows tunnel recovery
+
+`scripts/keep-dashboard-tunnel.ps1` keeps the local port-8000 tunnel alive and retries five seconds after a Pi reboot or network loss. It is registered in the current Windows user's startup configuration, so it runs hidden after sign-in.
+
 ## Privacy and data handling
 
 - Frame the camera on hands and board only; faces must not enter the view.
