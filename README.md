@@ -64,7 +64,7 @@ flowchart TB
 
 Both Echo dividers are mandatory: HC-SR04 Echo is 5 V and Raspberry Pi GPIO inputs must receive no more than 3.3 V.
 
-For detailed visual diagrams, open [architecture.html](docs/architecture.html), [current-system-flow.html](docs/current-system-flow.html), and [wiring.md](docs/wiring.md).
+For detailed visual diagrams, open [architecture.pdf](docs/architecture.pdf), [current-system-flow.pdf](docs/current-system-flow.pdf), and [wiring.md](docs/wiring.md).
 
 ## Completion check
 
@@ -75,7 +75,7 @@ The dashboard stores one solved-T reference during setup. On every start/stop ch
 3. Contour comparison with OpenCV `matchShapes`.
 4. Area-ratio comparison with the solved reference.
 
-This is fixed-camera reference matching, not semantic image recognition. Calibrate thresholds with real complete and incomplete examples under final lighting. See [the visual verification explainer](docs/verify_algorithm.html).
+This is fixed-camera reference matching, not semantic image recognition. Calibrate thresholds with real complete and incomplete examples under final lighting. See [the visual verification explainer](docs/t-puzzle-verify-algorithm.pdf).
 
 ## Metrics collected
 
