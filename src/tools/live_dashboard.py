@@ -5,8 +5,8 @@ Run on the Pi:
     python3 src/tools/live_dashboard.py
 
 The dashboard serves current webcam frames and GPIO status only. It does not
-record video or images. By default it listens only on the Pi's localhost; use
-the SSH tunnel printed at startup to view it from the Windows machine.
+record video or images. By default it listens only on the Pi's localhost and
+is reached remotely through the Pi's private Tailscale Serve URL.
 """
 
 import argparse
@@ -59,7 +59,7 @@ ul { margin: 8px 0 0; padding-left: 20px; } footer { color: #526070; font-size: 
 <h1>Puzzle Telemetry Rig</h1>
 <p class="hint">Live view only. No video is recorded. Keep the camera framed on the board and hands.</p>
 <div class="grid">
-  <section class="card"><img src="/stream.mjpg" alt="Live puzzle webcam stream"></section>
+  <section class="card"><img id="live-frame" src="/frame.jpg" alt="Live puzzle webcam stream"><div id="camera-status" class="detail">Connecting to camera...</div></section>
   <section class="card">
     <div class="reading"><div class="label">Sensor 1</div><div id="sensor1" class="value">Waiting...</div></div>
     <div class="reading"><div class="label">Sensor 2</div><div id="sensor2" class="value">Waiting...</div></div>
@@ -78,6 +78,17 @@ ul { margin: 8px 0 0; padding-left: 20px; } footer { color: #526070; font-size: 
 </main>
 <script>
 function distance(value) { return value === null ? 'NO ECHO' : value.toFixed(1) + ' cm'; }
+const liveFrame = document.querySelector('#live-frame');
+const cameraStatus = document.querySelector('#camera-status');
+function refreshCamera() {
+  const next = new Image();
+  next.onload = () => {
+    liveFrame.src = next.src;
+    cameraStatus.textContent = 'Live camera view';
+  };
+  next.onerror = () => { cameraStatus.textContent = 'Camera frame unavailable; retrying...'; };
+  next.src = '/frame.jpg?t=' + Date.now();
+}
 function duration(value) {
   const total = Math.max(0, value || 0); const minutes = Math.floor(total / 60);
   return String(minutes).padStart(2, '0') + ':' + (total - minutes * 60).toFixed(1).padStart(4, '0');
@@ -142,6 +153,7 @@ async function runCheck(path) {
   } catch (error) { document.querySelector('#verification').textContent = error.message; }
   finally { buttons.forEach((button) => button.disabled = false); }
 }
+refreshCamera(); setInterval(refreshCamera, 750);
 refresh(); setInterval(refresh, 400);
 </script>
 </body></html>"""
@@ -584,6 +596,12 @@ def make_handler(monitor: HardwareMonitor, camera: CameraStream, verifier: Compl
                 self._send_bytes(HTTPStatus.OK, "application/json", payload)
             elif path == "/stream.mjpg":
                 self._stream_mjpeg()
+            elif path == "/frame.jpg":
+                jpeg, _ = camera.latest_jpeg()
+                if jpeg is None:
+                    self._send_bytes(HTTPStatus.SERVICE_UNAVAILABLE, "text/plain; charset=utf-8", b"camera frame is not ready")
+                else:
+                    self._send_bytes(HTTPStatus.OK, "image/jpeg", jpeg)
             else:
                 self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -670,8 +688,7 @@ def main() -> None:
         server = ThreadingHTTPServer((args.host, args.port), make_handler(monitor, camera, verifier, stopwatch))
         print(f"Dashboard running at http://{args.host}:{args.port}")
         if args.host in {"127.0.0.1", "localhost"}:
-            print(f"From Windows: ssh -N -L {args.port}:127.0.0.1:{args.port} raspberrypi@puzzle-rig-pi")
-            print(f"Then open: http://127.0.0.1:{args.port}")
+            print("Remote access is provided by the Pi's private Tailscale Serve URL.")
         print("Press Ctrl+C to stop. Webcam frames stay in memory and are not recorded.")
         server.serve_forever()
     except KeyboardInterrupt:

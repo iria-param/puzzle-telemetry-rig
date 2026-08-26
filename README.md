@@ -102,17 +102,11 @@ sudo systemctl restart puzzle-dashboard.service
 sudo journalctl -u puzzle-dashboard.service -n 50 --no-pager
 ```
 
-To view the dashboard remotely from Windows:
+To view the dashboard remotely, use the Pi's private Tailscale URL:
 
-```powershell
-ssh -N -L 8000:127.0.0.1:8000 raspberrypi@puzzle-rig-pi
-```
+<https://puzzle-rig-pi.tail77a689.ts.net/>
 
-Open <http://127.0.0.1:8000/> after the tunnel connects.
-
-### Automatic Windows tunnel recovery
-
-`scripts/keep-dashboard-tunnel.ps1` keeps the local port-8000 tunnel alive and retries five seconds after a Pi reboot or network loss. It is registered in the current Windows user's startup configuration, so it runs hidden after sign-in.
+The address is available only to approved devices on the Tailscale network. It avoids the temporary Windows SSH tunnel, which is retained only as a diagnostic fallback.
 
 ## Privacy and data handling
 
