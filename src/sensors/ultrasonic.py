@@ -18,20 +18,27 @@ class HCSR04Reader:
         self.echo = DigitalInputDevice(echo, pull_up=False)
         self.echo_timeout_s = echo_timeout_s
         self.max_distance_cm = max_distance_cm
+        self.last_diagnostic = 'waiting'
 
     def read_cm(self) -> float | None:
         """Return the distance in cm, or ``None`` if no valid echo arrives."""
+        if self.echo.is_active:
+            self.last_diagnostic = 'echo_high_before_trigger'
+            return None
         self.trigger.on()
         time.sleep(0.00001)  # HC-SR04 trigger pulse: at least 10 microseconds
         self.trigger.off()
 
         if not self.echo.wait_for_active(timeout=self.echo_timeout_s):
+            self.last_diagnostic = 'no_rising_edge'
             return None
         pulse_started = time.monotonic()
         if not self.echo.wait_for_inactive(timeout=self.echo_timeout_s):
+            self.last_diagnostic = 'no_falling_edge'
             return None
 
         distance_cm = (time.monotonic() - pulse_started) * 17_150
+        self.last_diagnostic = 'valid' if distance_cm <= self.max_distance_cm else 'out_of_range'
         return distance_cm if distance_cm <= self.max_distance_cm else None
 
     def close(self) -> None:
