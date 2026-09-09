@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Puzzle Rig Kiosk
+Comment=Fullscreen puzzle dashboard on the attached monitor
+Exec=/home/raspberrypi/phase_1/deploy/kiosk-launch.sh
+X-GNOME-Autostart-enabled=true

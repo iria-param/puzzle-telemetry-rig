@@ -9,7 +9,9 @@ User=raspberrypi
 WorkingDirectory=/home/raspberrypi/phase_1
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/python3 -u /home/raspberrypi/phase_1/src/tools/live_dashboard.py
-Restart=on-failure
+# Kiosk device: always come back, whatever the exit reason (power cut, crash,
+# clean exit, camera not ready yet at boot).
+Restart=always
 RestartSec=5
 
 [Install]
