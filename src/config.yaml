@@ -50,6 +50,20 @@ completion:
   min_area_ratio: 0.82          # current largest piece area / solved-T area
   max_area_ratio: 1.18
 
+display:
+  # DECISION 09 Sep 2026: running with VCC on 5 V (wiring cannot be changed).
+  # The module's pull-ups put ~5 V on GPIO23/24 through onboard resistors -
+  # out of spec for the Pi but low-current; accepted risk, damage would be
+  # limited to these two pins. Move VCC to 3.3 V (physical 1/17) if the
+  # wiring is ever revisited.
+  enabled: true
+  interface_confirmed: true   # = the decision recorded above, not 3.3 V safety
+  clk: 23                 # PROVISIONAL BCM23, physical pin 16 - if nothing lights,
+  dio: 24                 # run: python src/tools/diagnose_sensors.py --display
+  brightness: 2           # 0..7
+  scroll_step_s: 0.3
+  notice_s: 2.4           # how long "NOT DONE"/"Err" flashes after a rejected stop press
+
 data:
   dir: data              # relative to where main.py is run from (~/phase_1 on the Pi)
   csv: sessions.csv

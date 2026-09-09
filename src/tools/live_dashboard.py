@@ -31,6 +31,7 @@ from sensors.ultrasonic import HCSR04Reader
 from datalog.logger import SessionLogger
 from vision.camera import CameraStream
 from vision.verify import CompletionVerifier
+from display.seven_segment import SessionDisplay
 
 PAGE = """<!doctype html>
 <html lang="en">
@@ -61,11 +62,12 @@ ul { margin: 8px 0 0; padding-left: 20px; } footer { color: #526070; font-size: 
 <div class="grid">
   <section class="card"><img id="live-frame" src="/frame.jpg" alt="Live puzzle webcam stream"><div id="camera-status" class="detail">Connecting to camera...</div></section>
   <section class="card">
-    <div class="reading"><div class="label">Sensor 1</div><div id="sensor1" class="value">Waiting...</div></div>
-    <div class="reading"><div class="label">Sensor 2</div><div id="sensor2" class="value">Waiting...</div></div>
+    <div class="reading"><div class="label">Sensor 1</div><div id="sensor1" class="value">Waiting...</div><div id="sensor1-detail" class="detail"></div></div>
+    <div class="reading"><div class="label">Sensor 2</div><div id="sensor2" class="value">Waiting...</div><div id="sensor2-detail" class="detail"></div></div>
     <div class="reading"><div class="label">Visitor approach</div><div id="approach" class="value">WAITING</div><div id="approach-detail" class="detail">Waiting for a sustained nearby sensor reading.</div></div>
     <div class="reading"><div class="label">Stopwatch (limit switch)</div><div id="stopwatch" class="value">READY</div><div id="stopwatch-detail" class="detail">Press the limit switch to start.</div></div>
     <div class="reading"><div class="label">Limit switch (GPIO26)</div><div id="switch" class="value">Waiting...</div></div>
+    <div class="reading"><div class="label">Four-digit display preview</div><div id="display-preview" class="value" style="white-space:pre; font-family:monospace">    </div><div id="display-detail" class="detail"></div></div>
     <div class="reading"><div class="label">Recent switch events</div><ul id="events"><li>None yet</li></ul></div>
     <div class="reading"><div class="label">T-puzzle completion</div>
       <button id="save-reference" onclick="runCheck('/api/reference/capture')">Save solved T reference</button>
@@ -126,6 +128,15 @@ async function refresh() {
     const status = await (await fetch('/api/status', {cache: 'no-store'})).json();
     document.querySelector('#sensor1').textContent = distance(status.sensors['Sensor 1']);
     document.querySelector('#sensor2').textContent = distance(status.sensors['Sensor 2']);
+    for (const number of [1, 2]) {
+      const info = (status.sensor_diagnostics || {})['Sensor ' + number];
+      if (info) document.querySelector('#sensor' + number + '-detail').textContent =
+        'Trig GPIO' + info.trigger + ' / Echo GPIO' + info.echo + ': ' + info.result.replaceAll('_', ' ');
+    }
+    const display = status.display || {};
+    const digits = display.text || '    ';
+    document.querySelector('#display-preview').textContent = display.colon ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
+    document.querySelector('#display-detail').textContent = display.message || 'Display unavailable';
     const approach = approachText(status.approach); const approachBox = document.querySelector('#approach');
     approachBox.textContent = approach[0]; approachBox.className = 'value ' + (status.approach.state === 'approached' ? 'ok' : '');
     document.querySelector('#approach-detail').textContent = approach[1];
@@ -274,6 +285,11 @@ class HardwareMonitor:
         self._switch = Button(pins["limit_switch"], pull_up=True, bounce_time=test_config["switch_bounce_s"])
         self._lock = threading.Lock()
         self._readings = {name: None for name in self._readers}
+        self._diagnostics = {
+            f'Sensor {number}': {'trigger': pins[f'sensor{number}_trigger'],
+                                'echo': pins[f'sensor{number}_echo'], 'result': 'waiting'}
+            for number in (1, 2)
+        }
         self._events: deque[str] = deque(maxlen=5)
         self._running = threading.Event()
         self._thread = None
@@ -303,10 +319,13 @@ class HardwareMonitor:
             for name, reader in self._readers.items():
                 try:
                     reading = reader.read_cm()
-                except Exception:  # A dashboard must remain available if a sensor momentarily fails.
+                    diagnostic = reader.last_diagnostic
+                except Exception as exc:  # Keep software errors distinct from a missing echo.
                     reading = None
+                    diagnostic = f'reader_error: {type(exc).__name__}: {exc}'
                 with self._lock:
                     self._readings[name] = reading
+                    self._diagnostics[name]['result'] = diagnostic
                 readings[name] = reading
                 time.sleep(self._interval)
             # Approach tracking is gated to pre-session states (READY / START CHECK):
@@ -320,8 +339,10 @@ class HardwareMonitor:
         with self._lock:
             readings = self._readings.copy()
             events = list(self._events)
+            diagnostics = {name: info.copy() for name, info in self._diagnostics.items()}
         return {
             "sensors": readings,
+            "sensor_diagnostics": diagnostics,
             "approach": self._approach_tracker.status(),
             "switch": {"pressed": self._switch.is_pressed, "events": events},
             "updated": time.strftime("%H:%M:%S"),
@@ -569,7 +590,7 @@ class StopwatchSession:
     def status(self) -> dict:
         with self._lock:
             elapsed_s = self._elapsed_s
-            if self._state == "running":
+            if self._state in {"running", "verifying_stop"}:
                 elapsed_s = time.monotonic() - self._started_monotonic
             return {
                 "state": self._state,
@@ -582,7 +603,7 @@ class StopwatchSession:
             }
 
 
-def make_handler(monitor: HardwareMonitor, camera: CameraStream, verifier: CompletionVerifier, stopwatch: StopwatchSession):
+def make_handler(monitor: HardwareMonitor, camera: CameraStream, verifier: CompletionVerifier, stopwatch: StopwatchSession, display=None):
     class DashboardHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
             path = urlparse(self.path).path
@@ -592,6 +613,7 @@ def make_handler(monitor: HardwareMonitor, camera: CameraStream, verifier: Compl
                 status = monitor.status()
                 status["verification"] = verifier.status()
                 status["session"] = stopwatch.status()
+                status["display"] = display.status() if display else {"state": "disabled"}
                 payload = json.dumps(status).encode()
                 self._send_bytes(HTTPStatus.OK, "application/json", payload)
             elif path == "/stream.mjpg":
@@ -677,6 +699,12 @@ def main() -> None:
     logger = SessionLogger(config["data"]["dir"], config["data"]["csv"], config["data"]["images_dir"])
     approach_tracker = ApproachTracker(config["session"])
     stopwatch = StopwatchSession(camera, verifier, logger, approach_tracker, config["session"]["safety_timeout_s"])
+    display_settings = config.get('display', {})
+    if display_settings.get('enabled'):
+        display_pins = [display_settings['clk'], display_settings['dio']]
+        if len(set(display_pins)) != 2 or set(display_pins) & set(config['pins'].values()):
+            raise ValueError('Display pins overlap each other or an existing sensor/switch')
+    display = SessionDisplay(display_settings, stopwatch.status, config['session']['result_hold_s'])
     monitor = HardwareMonitor(
         config, approach_tracker,
         on_switch_press=stopwatch.on_switch_press,
@@ -685,7 +713,8 @@ def main() -> None:
     try:
         camera.start()
         monitor.start()
-        server = ThreadingHTTPServer((args.host, args.port), make_handler(monitor, camera, verifier, stopwatch))
+        display.start()
+        server = ThreadingHTTPServer((args.host, args.port), make_handler(monitor, camera, verifier, stopwatch, display))
         print(f"Dashboard running at http://{args.host}:{args.port}")
         if args.host in {"127.0.0.1", "localhost"}:
             print("Remote access is provided by the Pi's private Tailscale Serve URL.")
@@ -697,6 +726,7 @@ def main() -> None:
         if "server" in locals():
             server.server_close()
         camera.stop()
+        display.stop()
         monitor.stop()
 
 

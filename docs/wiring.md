@@ -24,6 +24,10 @@ Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wir
 | J9 | Limit switch leg A | 37 | GPIO26 | internal pull-up; verified open idle, closed = LOW |
 | J10 | Limit switch leg B | any GND | — | "-ve" leg |
 | J11 | USB webcam (Brio 100) | USB-A port | — | /dev/video0 — verified 17 Aug 2026 |
+| J12 | TM1637 display CLK | 16 | GPIO23 | PROVISIONAL — confirm with `diagnose_sensors.py --display` |
+| J13 | TM1637 display DIO | 18 | GPIO24 | PROVISIONAL — same probe |
+| J14 | TM1637 display VCC | **1 or 17 (3V3)** | — | ⚠ MUST move off 5 V — see §9 |
+| J15 | TM1637 display GND | any GND | — | |
 
 Both Echo lines go through **1 kΩ + 2 kΩ dividers** — confirmed fitted 20 Aug 2026 (see §3).
 
@@ -158,6 +162,24 @@ GPIO23 is free in the current map, and the e-paper then connects exactly as rev 
 | Camera not found | Signal | Port/cable | `lsusb` before/after re-plug | Another USB port; `dmesg \| tail` |
 
 Escalation: if a fault survives its fix column, isolate that one device on a bare Pi and re-run its smoke test before suspecting code.
+
+## 9. TM1637 4-digit 7-segment display (added 09 Sep 2026)
+
+Session timer + status display (scrolling "START PUZZLE", MM:SS stopwatch, donE/TIME OUT
+messages). Driven by `src/display/seven_segment.py` from the dashboard.
+
+⚠ **VCC must be on 3.3 V, not 5 V.** The module's onboard pull-ups tie CLK/DIO to VCC;
+at 5 V that puts 5 V on GPIO23/24, which the Pi does not tolerate long-term. The TM1637
+runs correctly from 3.3 V (slightly dimmer). Move the VCC jumper to physical pin 1 or 17,
+then activate per the steps in `config.yaml → display:`.
+
+Pin note: "CLK 23 / DIO 24" is stored as **BCM** GPIO23 (physical 16) and GPIO24 (physical 18).
+If the wires were actually plugged into physical positions 23/24 (= GPIO11/GPIO8, SPI pins),
+`diagnose_sensors.py --display` detects that via the chip's ACK and prints the config fix.
+
+E-paper impact: GPIO23 was reserved as the S1-Echo migration target and GPIO24 as EPD BUSY
+(§7). With the TM1637 on those pins, the e-paper migration plan must pick new pins if that
+display ever returns — plenty are free (GPIO5, 12, 13, 16, 18, 19, 20, 21, 25).
 
 ## References
 
