@@ -9,7 +9,7 @@ This is the project context file. Read this first. It routes you to every other 
 
 Measure how visitors solve physical puzzle boards, automatically:
 
-1. **Detect a person approaching** the table (2× HC-SR04 ultrasonic — rev 2).
+1. **Detect a person approaching** the table (1× active HC-SR04 on Sensor 1; Sensor 2 reserved but disconnected — rev 3).
 2. **Time the solve** — a **limit switch** press starts timing (only if the T isn't already solved) and a later press stops it (only when the camera verifies completion) — see §4.
 3. **Show the solve time** on a 2.9" e-paper display *(deferred — not currently attached, see wiring.md §7; the dashboard page shows it meanwhile)*.
 4. **Verify the puzzle is actually complete** from the camera image ← *implemented (v1 reference check), see §8.*
@@ -41,7 +41,7 @@ Visual version: open **docs/architecture.html** in a browser.
 | 1 | Raspberry Pi 4 | — | Official 5 V/3 A USB-C PSU |
 | 2 | USB webcam — Logitech Brio 100 | USB/V4L2 | USB-A → `/dev/video0` (confirmed 17 Aug 2026) |
 | 3 | HC-SR04 sensor 1 | GPIO (5 V, Echo divider fitted ✓) | Trigger GPIO22, Echo GPIO17 |
-| 4 | HC-SR04 sensor 2 | GPIO (5 V, Echo divider fitted ✓) | Trigger GPIO6, Echo GPIO27 |
+| 4 | HC-SR04 sensor 2 | GPIO | Not connected; GPIO6/GPIO27 reserved and disabled in config |
 | 5 | Limit switch (replaces start/stop buttons) | GPIO, internal pull-up | GPIO26 → GND; COM+NO, idle open and press/release verified 20 Aug 2026 |
 | 6 | MH-ET Live 2.9" e-paper (296×128) | SPI0 | **DEFERRED** — GPIO17/24 currently used by sensors; migration plan in wiring.md §7 |
 

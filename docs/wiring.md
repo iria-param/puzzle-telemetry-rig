@@ -1,9 +1,9 @@
 # Wiring Reference — Puzzle Telemetry Rig (Phase 1)
 
-Doc ID: PFT/AIRL/WIR/2026-001 · Last updated: 20 Aug 2026 (rev 2 — bench rewire)
+Doc ID: PFT/AIRL/WIR/2026-001 · Last updated: 11 Sep 2026 (rev 3 — single active HC-SR04)
 **This file is the single source of truth for all pin assignments.** If a pin changes, change it here first, then in `src/config.yaml`.
 
-Rev 2 changes: TWO HC-SR04 ultrasonic sensors + ONE limit switch (replaces the start/stop push buttons). E-paper display **deferred** — see §7 for the pin conflict and migration plan.
+Current installation: ONE HC-SR04 on Sensor 1 + ONE limit switch. Sensor 2 is not connected and is disabled in software.
 
 Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wiring.
 
@@ -17,10 +17,7 @@ Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wir
 | J2 | Sensor 1 GND | 6 (GND) | — | |
 | J3 | Sensor 1 Echo (via divider) | 11 | GPIO17 | confirmed |
 | J4 | Sensor 1 Trig | 15 | GPIO22 | confirmed |
-| J5 | Sensor 2 VCC | 4 (5V) | — | |
-| J6 | Sensor 2 GND | 9 (GND) | — | (or shares pin 6 rail) |
-| J7 | Sensor 2 Echo (via divider) | 13 | GPIO27 | confirmed |
-| J8 | Sensor 2 Trig | 31 | GPIO6 | confirmed |
+| J5–J8 | Sensor 2 | — | GPIO6/GPIO27 reserved | Not connected; disabled in `config.yaml` |
 | J9 | Limit switch leg A | 37 | GPIO26 | internal pull-up; verified open idle, closed = LOW |
 | J10 | Limit switch leg B | any GND | — | "-ve" leg |
 | J11 | USB webcam (Brio 100) | USB-A port | — | /dev/video0 — verified 17 Aug 2026 |
@@ -29,9 +26,9 @@ Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wir
 | J14 | TM1637 display VCC | **1 or 17 (3V3)** | — | ⚠ MUST move off 5 V — see §9 |
 | J15 | TM1637 display GND | any GND | — | |
 
-Both Echo lines go through **1 kΩ + 2 kΩ dividers** — confirmed fitted 20 Aug 2026 (see §3).
+The active Sensor 1 Echo line uses the fitted voltage divider (see §3).
 
-## 2. Pi 40-pin header — used pins only (rev 2)
+## 2. Pi 40-pin header — used pins only (rev 3)
 
 ```
                      ┌───────────┐

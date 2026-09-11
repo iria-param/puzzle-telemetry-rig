@@ -13,11 +13,13 @@ from gpiozero import DigitalInputDevice, DigitalOutputDevice
 class HCSR04Reader:
     """Read one HC-SR04 sensor without continuously triggering it."""
 
-    def __init__(self, trigger: int, echo: int, echo_timeout_s: float, max_distance_cm: float):
+    def __init__(self, trigger: int, echo: int, echo_timeout_s: float, max_distance_cm: float,
+                 min_distance_cm: float = 2):
         self.trigger = DigitalOutputDevice(trigger, initial_value=False)
         self.echo = DigitalInputDevice(echo, pull_up=False)
         self.echo_timeout_s = echo_timeout_s
         self.max_distance_cm = max_distance_cm
+        self.min_distance_cm = min_distance_cm
         self.last_diagnostic = 'waiting'
 
     def read_cm(self) -> float | None:
@@ -38,8 +40,9 @@ class HCSR04Reader:
             return None
 
         distance_cm = (time.monotonic() - pulse_started) * 17_150
-        self.last_diagnostic = 'valid' if distance_cm <= self.max_distance_cm else 'out_of_range'
-        return distance_cm if distance_cm <= self.max_distance_cm else None
+        in_range = self.min_distance_cm <= distance_cm <= self.max_distance_cm
+        self.last_diagnostic = 'valid' if in_range else 'out_of_range'
+        return distance_cm if in_range else None
 
     def close(self) -> None:
         self.trigger.close()

@@ -79,7 +79,10 @@ ul { margin: 8px 0 0; padding-left: 20px; } footer { color: #526070; font-size: 
 <footer id="updated">Connecting...</footer>
 </main>
 <script>
-function distance(value) { return value === null ? 'NO ECHO' : value.toFixed(1) + ' cm'; }
+function distance(value, diagnostic) {
+  if (diagnostic && diagnostic.result === 'disabled') return 'NOT CONNECTED';
+  return value === null || value === undefined ? 'NO ECHO' : value.toFixed(1) + ' cm';
+}
 const liveFrame = document.querySelector('#live-frame');
 const cameraStatus = document.querySelector('#camera-status');
 function refreshCamera() {
@@ -126,12 +129,14 @@ function verificationText(verification) {
 async function refresh() {
   try {
     const status = await (await fetch('/api/status', {cache: 'no-store'})).json();
-    document.querySelector('#sensor1').textContent = distance(status.sensors['Sensor 1']);
-    document.querySelector('#sensor2').textContent = distance(status.sensors['Sensor 2']);
     for (const number of [1, 2]) {
       const info = (status.sensor_diagnostics || {})['Sensor ' + number];
-      if (info) document.querySelector('#sensor' + number + '-detail').textContent =
-        'Trig GPIO' + info.trigger + ' / Echo GPIO' + info.echo + ': ' + info.result.replaceAll('_', ' ');
+      document.querySelector('#sensor' + number).textContent = distance(status.sensors['Sensor ' + number], info);
+      if (info) {
+        document.querySelector('#sensor' + number + '-detail').textContent = info.result === 'disabled'
+          ? 'This sensor channel is disabled in config.'
+          : 'Trig GPIO' + info.trigger + ' / Echo GPIO' + info.echo + ': ' + info.result.replaceAll('_', ' ');
+      }
     }
     const display = status.display || {};
     const digits = display.text || '    ';
@@ -272,22 +277,23 @@ class HardwareMonitor:
         pins = config["pins"]
         test_config = config["sensor_test"]
         self._interval = test_config["sample_interval_s"]
-        self._readers = {
-            "Sensor 1": HCSR04Reader(
-                pins["sensor1_trigger"], pins["sensor1_echo"],
+        enabled = set(config.get("sensors", {}).get("enabled", [1, 2]))
+        self._readers = {}
+        for number in (1, 2):
+            if number not in enabled:
+                continue
+            self._readers[f"Sensor {number}"] = HCSR04Reader(
+                pins[f"sensor{number}_trigger"], pins[f"sensor{number}_echo"],
                 test_config["echo_timeout_s"], test_config["max_distance_cm"],
-            ),
-            "Sensor 2": HCSR04Reader(
-                pins["sensor2_trigger"], pins["sensor2_echo"],
-                test_config["echo_timeout_s"], test_config["max_distance_cm"],
-            ),
-        }
+                test_config.get("min_distance_cm", 2),
+            )
         self._switch = Button(pins["limit_switch"], pull_up=True, bounce_time=test_config["switch_bounce_s"])
         self._lock = threading.Lock()
-        self._readings = {name: None for name in self._readers}
+        self._readings = {f"Sensor {number}": None for number in (1, 2)}
         self._diagnostics = {
             f'Sensor {number}': {'trigger': pins[f'sensor{number}_trigger'],
-                                'echo': pins[f'sensor{number}_echo'], 'result': 'waiting'}
+                                'echo': pins[f'sensor{number}_echo'],
+                                'result': 'waiting' if number in enabled else 'disabled'}
             for number in (1, 2)
         }
         self._events: deque[str] = deque(maxlen=5)

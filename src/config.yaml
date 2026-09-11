@@ -1,8 +1,10 @@
 # Puzzle Telemetry Rig — ALL tunables live here. Never hardcode these in code.
-# Pins are BCM GPIO numbers. Wiring source of truth: docs/wiring.md (rev 2, 20 Aug 2026)
+# Pins are BCM GPIO numbers. Wiring source of truth: docs/wiring.md (rev 3, 11 Sep 2026)
 #
-# REV 2: two HC-SR04 sensors + limit switch replace the start/stop buttons.
-# Confirmed on the current bench wiring (20 Aug 2026).
+# REV 3: one active HC-SR04 + limit switch. Sensor 2 pins remain reserved.
+
+sensors:
+  enabled: [1]           # Only Sensor 1 is physically connected (11 Sep 2026)
 
 pins:
   sensor1_trigger: 22    # physical pin 15
@@ -13,7 +15,8 @@ pins:
 
 sensor_test:
   sample_interval_s: 0.25  # gap between readings; sensors are polled sequentially
-  echo_timeout_s: 0.03     # HC-SR04 maximum valid echo pulse wait
+  echo_timeout_s: 0.05     # allows the HC-SR04 no-target pulse to return LOW cleanly
+  min_distance_cm: 2       # reject sub-minimum noise pulses
   max_distance_cm: 400     # HC-SR04 rated maximum distance
   switch_bounce_s: 0.05    # debounce for the GPIO26 limit switch
 
