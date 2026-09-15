@@ -59,7 +59,7 @@ display:
   # out of spec for the Pi but low-current; accepted risk, damage would be
   # limited to these two pins. Move VCC to 3.3 V (physical 1/17) if the
   # wiring is ever revisited.
-  enabled: true
+  enabled: false              # bench-only after 5 V back-feed; not connected to the installed rig
   interface_confirmed: true   # = the decision recorded above, not 3.3 V safety
   clk: 23                 # PROVISIONAL BCM23, physical pin 16 - if nothing lights,
   dio: 24                 # run: python src/tools/diagnose_sensors.py --display

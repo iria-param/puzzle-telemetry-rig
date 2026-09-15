@@ -617,6 +617,7 @@ def make_handler(monitor: HardwareMonitor, camera: CameraStream, verifier: Compl
                 self._send_bytes(HTTPStatus.OK, "text/html; charset=utf-8", PAGE.encode())
             elif path == "/api/status":
                 status = monitor.status()
+                status["camera"] = camera.status()
                 status["verification"] = verifier.status()
                 status["session"] = stopwatch.status()
                 status["display"] = display.status() if display else {"state": "disabled"}

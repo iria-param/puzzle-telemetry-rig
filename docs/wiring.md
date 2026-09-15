@@ -21,10 +21,7 @@ Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wir
 | J9 | Limit switch leg A | 37 | GPIO26 | internal pull-up; verified open idle, closed = LOW |
 | J10 | Limit switch leg B | any GND | — | "-ve" leg |
 | J11 | USB webcam (Brio 100) | USB-A port | — | /dev/video0 — verified 17 Aug 2026 |
-| J12 | TM1637 display CLK | 16 | GPIO23 | PROVISIONAL — confirm with `diagnose_sensors.py --display` |
-| J13 | TM1637 display DIO | 18 | GPIO24 | PROVISIONAL — same probe |
-| J14 | TM1637 display VCC | **1 or 17 (3V3)** | — | ⚠ MUST move off 5 V — see §9 |
-| J15 | TM1637 display GND | any GND | — | |
+| J12–J15 | TM1637 display | — | GPIO23/GPIO24 reserved | Bench-only and disconnected after failed display test; see §9 |
 
 The active Sensor 1 Echo line uses the fitted voltage divider (see §3).
 
@@ -161,6 +158,9 @@ GPIO23 is free in the current map, and the e-paper then connects exactly as rev 
 Escalation: if a fault survives its fix column, isolate that one device on a bare Pi and re-run its smoke test before suspecting code.
 
 ## 9. TM1637 4-digit 7-segment display (added 09 Sep 2026)
+
+Current status 15 Sep 2026: removed from the installed rig for bench diagnosis and
+disabled in `src/config.yaml`. Use `src/tools/test_display.py` for isolated testing.
 
 Session timer + status display (scrolling "START PUZZLE", MM:SS stopwatch, donE/TIME OUT
 messages). Driven by `src/display/seven_segment.py` from the dashboard.
