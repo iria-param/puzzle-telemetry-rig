@@ -21,7 +21,10 @@ Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wir
 | J9 | Limit switch leg A | 37 | GPIO26 | internal pull-up; verified open idle, closed = LOW |
 | J10 | Limit switch leg B | any GND | — | "-ve" leg |
 | J11 | USB webcam (Brio 100) | USB-A port | — | /dev/video0 — verified 17 Aug 2026 |
-| J12–J15 | TM1637 display | — | GPIO23/GPIO24 reserved | Bench-only and disconnected after failed display test; see §9 |
+| J12 | TM1637 display CLK | 16 | GPIO23 | Connected; standalone display test passed 15 Sep 2026 |
+| J13 | TM1637 display DIO | 18 | GPIO24 | Connected; standalone display test passed 15 Sep 2026 |
+| J14 | TM1637 display VCC | 1 (3V3) | — | 3.3 V measured at module; never use 5 V |
+| J15 | TM1637 display GND | 6 (GND) | — | Connected |
 
 The active Sensor 1 Echo line uses the fitted voltage divider (see §3).
 
@@ -159,8 +162,9 @@ Escalation: if a fault survives its fix column, isolate that one device on a bar
 
 ## 9. TM1637 4-digit 7-segment display (added 09 Sep 2026)
 
-Current status 15 Sep 2026: removed from the installed rig for bench diagnosis and
-disabled in `src/config.yaml`. Use `src/tools/test_display.py` for isolated testing.
+Current status 15 Sep 2026: reconnected at a measured 3.3 V and enabled in
+`src/config.yaml`. The all-segments, `1234`, `DONE`, and counter patterns passed
+visually. Use `src/tools/test_display.py` for future isolated testing.
 
 Session timer + status display (scrolling "START PUZZLE", MM:SS stopwatch, donE/TIME OUT
 messages). Driven by `src/display/seven_segment.py` from the dashboard.
