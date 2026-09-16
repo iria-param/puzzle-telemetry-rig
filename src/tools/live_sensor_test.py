@@ -7,7 +7,7 @@ Run on the Pi:
 Use Ctrl+C to stop. The sensors are read one at a time to prevent ultrasonic
 cross-talk. A ``NO ECHO`` status means no valid return was received within the
 configured range; place a flat object 20-50 cm in front of the sensor to test.
-The switch is ``PRESSED`` when it closes GPIO26 to GND.
+The switch is ``PRESSED`` when it closes the configured GPIO to GND.
 """
 
 import argparse

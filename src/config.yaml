@@ -1,24 +1,25 @@
 # Puzzle Telemetry Rig — ALL tunables live here. Never hardcode these in code.
-# Pins are BCM GPIO numbers. Wiring source of truth: docs/wiring.md (rev 3, 11 Sep 2026)
+# Pins are BCM GPIO numbers. Wiring source of truth: docs/wiring.md (rev 4, 16 Sep 2026)
 #
-# REV 3: one active HC-SR04 + limit switch. Sensor 2 pins remain reserved.
+# REV 4: S1 on GPIO20/21, switch on GPIO7, TM1637 on GPIO23/24.
+# Sensor 2 pins remain reserved. Known-distance S1 validation is pending.
 
 sensors:
   enabled: [1]           # Only Sensor 1 is physically connected (11 Sep 2026)
 
 pins:
-  sensor1_trigger: 22    # physical pin 15
-  sensor1_echo: 17       # physical pin 11, via 1 kOhm + 2 kOhm divider
+  sensor1_trigger: 20    # physical pin 38 (even-numbered header column)
+  sensor1_echo: 21       # physical pin 40, via 2.2 kOhm + 3.3 kOhm divider
   sensor2_trigger: 6     # physical pin 31
   sensor2_echo: 27       # physical pin 13, via 1 kOhm + 2 kOhm divider
-  limit_switch: 26       # physical pin 37 to GND; verified open idle and press/release
+  limit_switch: 7        # physical pin 26; switch closes to GND on physical pin 20
 
 sensor_test:
   sample_interval_s: 0.25  # gap between readings; sensors are polled sequentially
   echo_timeout_s: 0.05     # allows the HC-SR04 no-target pulse to return LOW cleanly
   min_distance_cm: 2       # reject sub-minimum noise pulses
   max_distance_cm: 400     # HC-SR04 rated maximum distance
-  switch_bounce_s: 0.05    # debounce for the GPIO26 limit switch
+  switch_bounce_s: 0.05    # debounce for the GPIO7 limit switch
 
 session:
   approach_cm: 80        # person-near distance threshold

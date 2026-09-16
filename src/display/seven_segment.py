@@ -32,7 +32,10 @@ class SessionDisplayRenderer:
 
     def render(self, session, now):
         state = session['state']
-        key = (state, session.get('started_at'), session.get('stopped_at'), session.get('message'))
+        # Two checks can finish with identical state/message between display
+        # polls. A new result must replay its notice even in that case.
+        key = (state, session.get('started_at'), session.get('stopped_at'),
+               session.get('message'), session.get('feedback_revision', 0))
         if key != self._key:
             self._key, self._changed = key, now
         age = max(0, now - self._changed)

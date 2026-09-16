@@ -61,6 +61,31 @@ class DisplayTests(unittest.TestCase):
         frame = renderer.render(session, 0.0)
         self.assertEqual((frame['text'], frame['mode']), ('0001', 'timer'))
 
+    def test_repeat_incomplete_notice_without_observing_checking_state(self):
+        renderer = SessionDisplayRenderer()
+        session = {'state': 'running', 'elapsed_s': 61,
+                   'message': 'Puzzle is incomplete - timer continues.',
+                   'feedback_revision': 1}
+        self.assertEqual(renderer.render(session, 10)['mode'], 'notice')
+        self.assertEqual(renderer.render(session, 13)['mode'], 'timer')
+        # The second camera check finishes between display polls. Its state
+        # and message are identical, but it is a new result from a new press.
+        session.update(feedback_revision=2, elapsed_s=75)
+        self.assertEqual(renderer.render(session, 24)['text'], 'NOT ')
+        self.assertEqual(renderer.render(session, 24.7)['text'], 'DONE')
+        self.assertEqual(renderer.render(session, 27)['text'], '0115')
+
+    def test_repeat_failed_start_replays_reset_or_error_prompt(self):
+        for result, expected in [('complete', 'RESE'), ('error', 'CHEC')]:
+            renderer = SessionDisplayRenderer()
+            session = {'state': 'ready', 'verification': {'state': result},
+                       'feedback_revision': 1}
+            renderer.render(session, 0)
+            self.assertEqual(renderer.render(session, 6.3)['text'], 'STAR')
+            session['feedback_revision'] = 2
+            renderer.render(session, 10)
+            self.assertEqual(renderer.render(session, 11.3)['text'], expected)
+
     def test_stop_check_error_flashes_err(self):
         renderer = SessionDisplayRenderer()
         session = {'state': 'running', 'elapsed_s': 30,

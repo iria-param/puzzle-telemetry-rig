@@ -18,14 +18,14 @@ import time
 from gpiozero import Button, DistanceSensor
 
 # Confirmed (trigger, echo) pairs from the current bench wiring:
-#   sensor 1: GPIO22 -> GPIO17
+#   sensor 1: GPIO20 -> GPIO21 (physical pins 38 -> 40)
 #   sensor 2: GPIO6 -> GPIO27
 CANDIDATES = {
-    "sensor 1": [(22, 17)],
+    "sensor 1": [(20, 21)],
     "sensor 2": [(6, 27)],
 }
 
-SWITCH_CANDIDATES = (26,)  # BCM26 (physical pin 37), verified open at idle
+SWITCH_CANDIDATES = (7,)  # BCM7 (physical pin 26); COM uses GND on physical pin 20
 MAX_M = 2.0  # sensor max range used for "no echo" detection
 
 
@@ -58,7 +58,7 @@ def probe_sonars() -> None:
 
 
 def probe_switch() -> None:
-    print("\n== limit switch: watching GPIO26 — press & release it a few times (12 s) ==")
+    print("\n== limit switch: watching GPIO7 / physical pin 26 — press & release it a few times (12 s) ==")
     watched = []
     for pin in SWITCH_CANDIDATES:
         try:

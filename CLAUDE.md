@@ -3,6 +3,17 @@
 Doc ID: PFT/AIRL/CTX/2026-001 · Owner: AI & Robotics Lab, Param Foundation · Last updated: 24 Aug 2026 (rev 5 — five-minute safety timeout)
 This is the project context file. Read this first. It routes you to every other file in the repo.
 
+## Current bench revision — 16 Sep 2026 (supersedes pin/display details below)
+
+- Current wiring source: `docs/wiring.md` rev 4. Sensor 1 TRIG/ECHO = BCM20/21 (physical 38/40); VCC/GND = physical 4/34. Echo divider = 2.2 kΩ series + 3.3 kΩ to GND.
+- Limit switch NO/COM = physical 26/20 (BCM7/GND). Sensor 2 remains disabled; BCM6/27 reserved.
+- Active display is TM1637: CLK/DIO BCM23/24, VCC/GND physical 1/6 at 3.3 V. Its driver and renderer are `src/display/seven_segment.py`. E-paper is deferred; its old migration plan below must not be applied to this wiring.
+- Optional two-pin LED socket uses physical 1 through 330 Ω to +, physical 6 to −; always on, no software control.
+- Each completed session check increments `feedback_revision` so repeated results replay the display notice. The user confirmed the physical display fix works on 16 Sep 2026. Tests: 22 passed.
+- HC-SR04 still reported `out_of_range` at handoff; a known-distance test on the new wiring is pending. Do not label it verified from pulse detection alone.
+- `README.md` and `docs/bench-test-2026-09-16.md` describe the current system. PDF diagrams are historical snapshots. This folder is a Git repository; the Windows checkout and deployed Pi copy must both be checked before changing runtime files.
+- Remaining sections retain earlier design/history context and can contain superseded wiring and file references. Use the current sources above for implementation.
+
 ---
 
 ## 1. Purpose

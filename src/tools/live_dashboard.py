@@ -66,7 +66,7 @@ ul { margin: 8px 0 0; padding-left: 20px; } footer { color: #526070; font-size: 
     <div class="reading"><div class="label">Sensor 2</div><div id="sensor2" class="value">Waiting...</div><div id="sensor2-detail" class="detail"></div></div>
     <div class="reading"><div class="label">Visitor approach</div><div id="approach" class="value">WAITING</div><div id="approach-detail" class="detail">Waiting for a sustained nearby sensor reading.</div></div>
     <div class="reading"><div class="label">Stopwatch (limit switch)</div><div id="stopwatch" class="value">READY</div><div id="stopwatch-detail" class="detail">Press the limit switch to start.</div></div>
-    <div class="reading"><div class="label">Limit switch (GPIO26)</div><div id="switch" class="value">Waiting...</div></div>
+    <div class="reading"><div class="label">Limit switch (GPIO7 / physical pin 26)</div><div id="switch" class="value">Waiting...</div></div>
     <div class="reading"><div class="label">Four-digit display preview</div><div id="display-preview" class="value" style="white-space:pre; font-family:monospace">    </div><div id="display-detail" class="detail"></div></div>
     <div class="reading"><div class="label">Recent switch events</div><ul id="events"><li>None yet</li></ul></div>
     <div class="reading"><div class="label">T-puzzle completion</div>
@@ -378,6 +378,7 @@ class StopwatchSession:
         self._lock = threading.Lock()
         self._state = "ready"
         self._message = ""
+        self._feedback_revision = 0
         self._started_at = None
         self._started_monotonic = None
         self._stopped_at = None
@@ -452,7 +453,7 @@ class StopwatchSession:
             self._message = message
 
     def on_switch_press(self) -> None:
-        """Handle a debounced press from GPIO26 without blocking the GPIO callback."""
+        """Handle a debounced press from the configured GPIO without blocking the callback."""
         now = datetime.now()
         jpeg, _ = self._camera.latest_jpeg()
         approach = self._approach_tracker.snapshot()
@@ -504,6 +505,7 @@ class StopwatchSession:
         verification = self._check_frame(jpeg)
         with self._lock:
             self._verification = verification
+            self._feedback_revision += 1
             if verification["state"] == "incomplete":
                 self._state = "running"
                 self._message = "Timer running. Press again to check completion."
@@ -547,6 +549,7 @@ class StopwatchSession:
                 self._elapsed_s = None
                 self._verification = verification
                 self._message = "Puzzle is incomplete - timer continues." if verification["state"] == "incomplete" else verification.get("message", "Verification failed; try again.")
+                self._feedback_revision += 1
             return
 
         with self._lock:
@@ -592,6 +595,7 @@ class StopwatchSession:
             self._elapsed_s = elapsed_s
             self._state = "complete"
             self._message = message
+            self._feedback_revision += 1
 
     def status(self) -> dict:
         with self._lock:
@@ -601,6 +605,7 @@ class StopwatchSession:
             return {
                 "state": self._state,
                 "message": self._message,
+                "feedback_revision": self._feedback_revision,
                 "elapsed_s": elapsed_s,
                 "started_at": None if self._started_at is None else self._started_at.isoformat(timespec="seconds"),
                 "stopped_at": None if self._stopped_at is None else self._stopped_at.isoformat(timespec="seconds"),

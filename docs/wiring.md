@@ -1,189 +1,128 @@
 # Wiring Reference — Puzzle Telemetry Rig (Phase 1)
 
-Doc ID: PFT/AIRL/WIR/2026-001 · Last updated: 11 Sep 2026 (rev 3 — single active HC-SR04)
-**This file is the single source of truth for all pin assignments.** If a pin changes, change it here first, then in `src/config.yaml`.
+Doc ID: PFT/AIRL/WIR/2026-001 · Updated 16 Sep 2026 · Revision 4
 
-Current installation: ONE HC-SR04 on Sensor 1 + ONE limit switch. Sensor 2 is not connected and is disabled in software.
+This is the current wiring reference. Code uses BCM GPIO numbers; connections below use physical header pin numbers. Sensor 1 and the limit switch now use the even-numbered column.
 
-Pi pin numbering: **BCM GPIO numbers** in code, **physical pin numbers** for wiring.
+## 1. Complete connections
 
----
+| Device terminal | Pi physical pin | BCM / supply | Connection |
+|---|---:|---|---|
+| HC-SR04 VCC | 4 | 5 V | Direct |
+| HC-SR04 GND | 34 | GND | Shared with divider ground |
+| HC-SR04 TRIG | 38 | GPIO20 | Direct |
+| HC-SR04 ECHO | 40 | GPIO21 | Through divider in §3 |
+| Limit switch NO | 26 | GPIO7 | Internal pull-up enabled |
+| Limit switch COM | 20 | GND | NC remains disconnected |
+| TM1637 VCC | 1 | 3.3 V | Tested module is powered at 3.3 V |
+| TM1637 GND | 6 | GND | Direct |
+| TM1637 CLK | 16 | GPIO23 | Direct |
+| TM1637 DIO | 18 | GPIO24 | Direct |
+| Two-pin LED socket + | 1 | 3.3 V | Through 330 Ω resistor |
+| Two-pin LED socket − | 6 | GND | Direct; LED always on |
+| USB webcam | USB-A | USB | Camera index 0 |
+| Sensor 2 | Disconnected | GPIO6/GPIO27 reserved | Disabled in configuration |
 
-## 1. Master connection index — current bench wiring (20 Aug 2026)
+The display and LED share the 3.3 V and GND rails. The simple LED socket is separate from the four-wire TM1637 and has no GPIO-controlled behavior.
 
-| Ref | From (module pin) | To (Pi physical pin) | BCM | Notes |
-|-----|-------------------|----------------------|-----|-------|
-| J1 | Sensor 1 VCC | 2 (5V) | — | |
-| J2 | Sensor 1 GND | 6 (GND) | — | |
-| J3 | Sensor 1 Echo (via divider) | 11 | GPIO17 | confirmed |
-| J4 | Sensor 1 Trig | 15 | GPIO22 | confirmed |
-| J5–J8 | Sensor 2 | — | GPIO6/GPIO27 reserved | Not connected; disabled in `config.yaml` |
-| J9 | Limit switch leg A | 37 | GPIO26 | internal pull-up; verified open idle, closed = LOW |
-| J10 | Limit switch leg B | any GND | — | "-ve" leg |
-| J11 | USB webcam (Brio 100) | USB-A port | — | /dev/video0 — verified 17 Aug 2026 |
-| J12 | TM1637 display CLK | 16 | GPIO23 | Connected; standalone display test passed 15 Sep 2026 |
-| J13 | TM1637 display DIO | 18 | GPIO24 | Connected; standalone display test passed 15 Sep 2026 |
-| J14 | TM1637 display VCC | 1 (3V3) | — | 3.3 V measured at module; never use 5 V |
-| J15 | TM1637 display GND | 6 (GND) | — | Connected |
+## 2. Header orientation
 
-The active Sensor 1 Echo line uses the fitted voltage divider (see §3).
+Reference view from above the Pi header, oriented with pin 1 at upper left. When looking from underneath with the pin-1 end still at the top, left and right are mirrored. Identify the socket contact that actually mates with Pi pin 1 before numbering solder pads. Printed perfboard row numbers are not Pi pin numbers.
 
-## 2. Pi 40-pin header — used pins only (rev 3)
-
-```
-                     ┌───────────┐
-              (1)    │ ▪ ▪ │   (2) ── 5V ────── Sensor 1 VCC   [J1]
-              (3)    │ ▪ ▪ │   (4) ── 5V ────── Sensor 2 VCC   [J5]
-              (5)    │ ▪ ▪ │   (6) ── GND ───── Sensor 1 GND   [J2]
-              (7)    │ ▪ ▪ │   (8)
-  [J6] Sensor 2 GND ── GND (9) │ ▪ ▪ │  (10)
-  [J3] S1 Echo ─── GPIO17 (11) │ ▪ ▪ │  (12)
-  [J7] S2 Echo ─── GPIO27 (13) │ ▪ ▪ │  (14)
-  [J4] S1 Trig ─── GPIO22 (15) │ ▪ ▪ │  (16)
-             (17)    │ ▪ ▪ │  (18)
-             (19)    │ ▪ ▪ │  (20)
-             (21)    │ ▪ ▪ │  (22)
-             (23)    │ ▪ ▪ │  (24)
-             (25)    │ ▪ ▪ │  (26)
-             (27)    │ ▪ ▪ │  (28)
-             (29)    │ ▪ ▪ │  (30)
-  [J8] S2 Trig ──── GPIO6  (31) │ ▪ ▪ │  (32)
-             (33)    │ ▪ ▪ │  (34)
-             (35)    │ ▪ ▪ │  (36)
-  [J9] limit switch ── GPIO26 (37) │ ▪ ▪ │  (38)
-             (39 GND — switch/divider rail ok) │ ▪ ▪ │  (40)
-                     └───────────┘
-         (pin 1 is nearest the SD-card corner)
+```text
+ODD physical pins                  EVEN physical pins
+ 1  3.3 V: display + LED resistor     2  unused 5 V
+ 3  unused                           4  5 V: sensor VCC
+ 5  unused                           6  GND: display + LED
+ 7  unused                           8  unused
+ 9  unused                          10  unused
+11  unused                          12  unused
+13  GPIO27: Sensor 2 reserved        14  unused
+15  unused                          16  GPIO23: display CLK
+17  unused                          18  GPIO24: display DIO
+19  unused                          20  GND: switch COM
+21  unused                          22  unused
+23  unused                          24  unused
+25  unused                          26  GPIO7: switch NO
+27  unused                          28  unused
+29  unused                          30  unused
+31  GPIO6: Sensor 2 reserved         32  unused
+33  unused                          34  GND: sensor + divider
+35  unused                          36  unused
+37  unused                          38  GPIO20: sensor TRIG
+39  unused                          40  GPIO21: divided ECHO
 ```
 
-## 3. Echo voltage dividers — one per sensor, MANDATORY
+“Unused” means not connected by this project; it does not imply every pin is a general-purpose signal pin. Physical pin 27 is not Sensor 2's GPIO27; physical pin 13 is GPIO27.
 
-Echo outputs **5 V**; Pi GPIO tolerates **3.3 V max**. Each sensor's Echo runs through:
+## 3. HC-SR04 Echo divider
 
-```
-ECHO (5 V) ──[ 1 kΩ ]──●──────► Pi GPIO (3.3 V)
-                       │
-                    [ 2 kΩ ]
-                       │
-                      GND
-```
-
-Check: 5 V × 2k/(1k+2k) = 3.33 V ✓. Status: **fitted on both sensors — confirmed 20 Aug 2026.**
-
-## 4. Limit switch (replaces the START/STOP buttons)
-
-Wired between **GPIO26 (pin 37)** and GND. No external resistor — code enables the internal pull-up.
-
-```
-GPIO26 (pin 37) ──► [ limit switch ] ──► GND        open = HIGH, closed = LOW
+```text
+Sensor ECHO ---[2.2 kΩ]---●---- physical 40 / GPIO21
+                         |
+                      [3.3 kΩ]
+                         |
+                         +---- physical 34 / GND
 ```
 
-```python
-from gpiozero import Button
-switch = Button(26)          # is_pressed == True when the switch is closed
+At the junction, join the end of the 2.2 kΩ resistor, the end of the 3.3 kΩ resistor, and the wire to GPIO21. At a nominal 5 V Echo, the divider produces 5 × 3.3 / (2.2 + 3.3) = 3.0 V. Never connect the 5 V Echo output directly to a GPIO.
+
+This replaces earlier diagram values. A 2.2 kΩ series resistor with 4.7 kΩ to ground produces about 3.4 V at 5 V and is not the specified divider. Measure resistor values; the illustrative generated photos are not resistor color-code references.
+
+Power off before soldering or rewiring. With the Pi and modules disconnected, verify each intended connection and check for accidental bridges between supply, ground, and signal pads. Existing photographed tracks are not electrically verified by this document.
+
+## 4. Limit switch
+
+```text
+NO  -------------------- physical 26 / GPIO7
+COM -------------------- physical 20 / GND
+NC  -------------------- disconnected
 ```
 
-Verified 20 Aug 2026: the switch is wired **COM + NO**. It is open/released at idle and GPIO26 reads LOW when pressed. In the live dashboard, the first press starts only after confirming that the T is incomplete; each later press checks the T, and timing ends only when it verifies complete.
+Software uses an internal pull-up and 0.05 s debounce. Released = HIGH/open; pressed = LOW/connected to GND. One press triggers one session action; holding the switch does not repeat it. Release is recorded but does not start or stop timing.
 
-## 5. Pin verification
+Physical pin 26 is also SPI0 CE1 (GPIO7). Do not assign it to an active SPI device while it is used as the switch input.
 
-The confirmed sensor pairs are shown below. Run the probe after rewiring to verify their readings and the switch's idle state:
+## 5. TM1637 and LED
 
-```bash
-cd ~/phase_1 && source ~/puzzle-venv/bin/activate
-python src/tools/probe_pins.py
+The four-digit module uses the four display connections in §1. Keep this tested module at 3.3 V; its CLK/DIO interface must remain safe for Pi GPIO.
+
+```text
+physical 1 / 3.3 V ---[330 Ω]--- LED +
+physical 6 / GND --------------- LED −
 ```
 
-Hold a hand ~30 cm in front of the sensor when prompted. PASS looks like exactly one line per sensor saying `[LOOKS RIGHT]` at ~30 cm. Then record the result here:
+The LED's long leg is normally the anode (+); verify the component's markings if its legs have been cut. This indicator stays on while the 3.3 V rail is powered. The two-pin socket cannot substitute for the TM1637's four connections.
 
-| | Trig | Echo | confirmed |
-|---|---|---|---|
-| Sensor 1 | GPIO22 | GPIO17 | 20 Aug 2026 |
-| Sensor 2 | GPIO6 | GPIO27 | 20 Aug 2026 |
-| Limit switch | GPIO26 | idle = open (released); press/release PASS | 20 Aug 2026 |
+## 6. Live verification and diagnostics
 
-…and lock the same values into `src/config.yaml`.
+Use the running dashboard first; it owns the GPIO pins. Do not start a second GPIO test process alongside it.
 
-## 6. Smoke tests (rev 2)
+- Confirm diagnostics show Sensor 1 TRIG GPIO20 / ECHO GPIO21.
+- Press and release the switch: recent events should show both transitions.
+- With an incomplete puzzle, start timing and make two unsuccessful stop attempts, separated by at least three seconds. Each should show NOT DONE briefly and then the advancing timer.
+- A new check increments session feedback_revision even if its result matches the previous check. Browser preview and physical display use the same renderer.
+- Verify Sensor 1 against a flat target 20–50 cm away. An out_of_range result is not a passing distance test.
+- Display acknowledged confirms a protocol response, not visual correctness of every LED segment.
 
-**T1 — SPI enabled** (still passes; needed only when the e-paper returns)
-```bash
-ls /dev/spidev0.*        # PASS: spidev0.0  spidev0.1
-```
+For an isolated hardware test, stop puzzle-dashboard.service first, and restart it when finished. The legacy probe also visits reserved Sensor 2; use the dashboard for the single-sensor acceptance test.
 
-**T2 — limit switch** — **PASS, 20 Aug 2026.** Covered by the live dashboard or the probe (§5). Standalone check:
-```bash
-python3 -c "from gpiozero import Button; from signal import pause; \
-b=Button(26); b.when_pressed=lambda: print('CLOSED'); \
-b.when_released=lambda: print('open'); pause()"
-```
-PASS: pressing/releasing prints alternately.
+## 7. Validation status — 16 Sep 2026
 
-**T3 — both sonars** (after the probe fills §5's table — use the confirmed pins):
-```bash
-python3 -c "from gpiozero import DistanceSensor; from time import sleep
-s1 = DistanceSensor(echo=[S1_ECHO], trigger=[S1_TRIG], max_distance=2)
-s2 = DistanceSensor(echo=[S2_ECHO], trigger=[S2_TRIG], max_distance=2)
-[print(f'S1 {s1.distance*100:5.0f} cm   S2 {s2.distance*100:5.0f} cm') or sleep(0.5) for _ in range(10)]"
-```
-PASS: both columns track a hand independently (±2 cm).
+| Item | Status |
+|---|---|
+| Limit switch on GPIO7 | Press/release events observed |
+| Repeated display feedback | User confirmed working after fix |
+| TM1637 power/interface | Previously measured at 3.3 V; live ACK observed |
+| Camera | Live API reported connected |
+| HC-SR04 on GPIO20/21 | Configuration deployed; out_of_range, known-distance test pending |
+| Simple LED socket | Connection specified; separate electrical test not recorded |
+| Software checks | 22 unit tests passed; deployed source hashes matched |
 
-**T4 — webcam** ✓ passed 17 Aug 2026 (Brio 100, /dev/video0).
+Full test record: [bench-test-2026-09-16.md](bench-test-2026-09-16.md).
 
-**T5 — e-paper** — deferred until the display is (re)attached; see §7.
+## 8. Deferred hardware and older diagrams
 
-## 7. E-paper — DEFERRED + pin conflict & migration plan
+Sensor 2 remains disconnected. The e-paper display remains deferred. Its previous migration plan is obsolete: GPIO23/24 are used by the TM1637, and GPIO7 is the switch. Re-plan pin usage and SPI ownership before adding it.
 
-Status 20 Aug 2026: display not attached; decision "later / maybe". The current sensor wiring **borrows one pin the display needs**:
-
-| Pin | Now used by | E-paper needs it as |
-|-----|-------------|---------------------|
-| GPIO17 | Sensor 1 Echo | RST |
-
-**Migration when the display arrives** (move one jumper, then update config.yaml + this file):
-
-- Sensor 1 Echo on GPIO17 → move to **GPIO23** (pin 16)
-
-GPIO23 is free in the current map, and the e-paper then connects exactly as rev 1 documented: VCC→3V3(17), GND→20, SDI→GPIO10(19), CLK→GPIO11(23), CS→GPIO8(24), DC→GPIO25(22), RST→GPIO17(11), BUSY→GPIO24(18). Driver: `epd2in9_V2` (SSD1680 batch) or legacy `epd2in9` (IL3820 batch) — test tells.
-
-## 8. Troubleshooting (rev 2)
-
-| Symptom | Layer | Probable cause | Diagnostic | Fix |
-|---------|-------|----------------|------------|-----|
-| Sonar stuck at max (~200 cm) | Signal | Trig/Echo swapped, or Echo divider broken | Probe both orders (§5); multimeter divider mid-point | Swap pins in config; rebuild divider §3 |
-| Sonar reads 0 / erratic | Signal / Electrical | Loose VCC or shared-GND missing | Wiggle test; continuity sensor GND ↔ Pi GND | Re-seat J1/J2/J5/J6 |
-| Both sonars interfere (jumpy readings) | Signal | Ultrasonic cross-talk — both pinging at once | Cover one sensor: does the other settle? | Poll them alternately in code (never simultaneously) |
-| Switch always "pressed" | Signal | Wired via NC terminal, or leg on 3V3 | Probe idle state (§5) | Use COM+NO terminals, or invert logic in code |
-| Switch never fires | Signal | GND leg not actually on GND | Continuity leg-B ↔ any GND pin | Re-seat J10 |
-| Sensor is always `NO ECHO` | Signal / Electrical | Wrong pins, loose wire, or divider fault | Run `live_sensor_test.py` with a hand 20–50 cm away | Recheck the confirmed pins and the divider in §3 |
-| Camera not found | Signal | Port/cable | `lsusb` before/after re-plug | Another USB port; `dmesg \| tail` |
-
-Escalation: if a fault survives its fix column, isolate that one device on a bare Pi and re-run its smoke test before suspecting code.
-
-## 9. TM1637 4-digit 7-segment display (added 09 Sep 2026)
-
-Current status 15 Sep 2026: reconnected at a measured 3.3 V and enabled in
-`src/config.yaml`. The all-segments, `1234`, `DONE`, and counter patterns passed
-visually. Use `src/tools/test_display.py` for future isolated testing.
-
-Session timer + status display (scrolling "START PUZZLE", MM:SS stopwatch, donE/TIME OUT
-messages). Driven by `src/display/seven_segment.py` from the dashboard.
-
-⚠ **VCC must be on 3.3 V, not 5 V.** The module's onboard pull-ups tie CLK/DIO to VCC;
-at 5 V that puts 5 V on GPIO23/24, which the Pi does not tolerate long-term. The TM1637
-runs correctly from 3.3 V (slightly dimmer). Move the VCC jumper to physical pin 1 or 17,
-then activate per the steps in `config.yaml → display:`.
-
-Pin note: "CLK 23 / DIO 24" is stored as **BCM** GPIO23 (physical 16) and GPIO24 (physical 18).
-If the wires were actually plugged into physical positions 23/24 (= GPIO11/GPIO8, SPI pins),
-`diagnose_sensors.py --display` detects that via the chip's ACK and prints the config fix.
-
-E-paper impact: GPIO23 was reserved as the S1-Echo migration target and GPIO24 as EPD BUSY
-(§7). With the TM1637 on those pins, the e-paper migration plan must pick new pins if that
-display ever returns — plenty are free (GPIO5, 12, 13, 16, 18, 19, 20, 21, 25).
-
-## References
-
-- gpiozero recipes (Button, DistanceSensor): https://gpiozero.readthedocs.io
-- Waveshare 2.9" wiki (for the deferred display): https://www.waveshare.com/wiki/2.9inch_e-Paper_Module
-- MH-ET 2.9" controller identification: https://forum.arduino.cc/t/mh-et-live-2-9-inch-display-with-gxepd2/1078967
+The original architecture and flow PDFs are retained as historical snapshots. Use this revision and src/config.yaml for current connections.
